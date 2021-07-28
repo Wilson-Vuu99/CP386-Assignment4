@@ -14,7 +14,6 @@ int MaxR[5][4];
 int Need[5][4];
 int Alloc[5][4];
 char FileResources[5][8];
-int Avail[4];
 
 typedef struct Customer
 {
@@ -106,7 +105,6 @@ int main(int argc, char *argv[]) {
     printf("Currently Avaliable Resources: ");
     for (int i = 1; i < (argc -1); i ++){
         printf("%s\n", argv[i]);
-        Avail[i-1] = argv[i]
     }
     
 }
