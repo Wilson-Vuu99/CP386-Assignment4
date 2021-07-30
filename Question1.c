@@ -16,12 +16,29 @@ int Alloc[5][4];
 char FileResources[5][8];
 int AvalR[4];
 
+
+sem_t lock;
+
 int ReadFile(char *filename);
 int InputReader(char* command);
 void rq(char* c);
-//void rl(char* c);
 int rl (char * c);
 void Status();
+void Run(Customer ** Customers);
+void* Bankers(void* t);
+Customer* Customers = NULL;
+
+typedef struct customer
+{
+        pthread_t Handle;
+        int CustNum;
+        int MaxR[4];
+        int Need[4];
+        int Alloc[4];
+        int returnVal;
+        
+} Customer;
+
 
 
 int ReadFile(char *filename)
@@ -102,6 +119,7 @@ int ReadFile(char *filename)
 
 int main(int argc, char *argv[]){
 
+        sem_init(&lock, 0, 1);
         // ReadFile("sample4_in.txt");
         printf("Number of Clients: 5\n");
         printf("Currently Avaliable Resources: ");
@@ -137,6 +155,10 @@ int main(int argc, char *argv[]){
                 flag = InputReader(cmand);
 
         }
+        sem_destroy(&lock);
+        //cust = (Customer*) malloc(sizeof(Customer));
+         
+
   
 }
 
@@ -151,7 +173,7 @@ int InputReader(char* command){
         Status();
     }
     else if (memcmp("Run", command, 3) == 0){ 
-        Run(command);
+        Run();
     }
 
     else{
@@ -341,20 +363,34 @@ void Status (){
         }              
 
 }
+void* Bankers(void *t){
+        printf("testing %d");
+}
 
-void Run(){
-
-
-
-
-
-
+void Run(Customer ** Customers){
+        pthread_t tid[5];
+        for (int i = 0; i < 5; i++){
+                pthread_create(&(tid[i]), NULL, Bankers, NULL)
+        }
+        for (int i=0; i<5; i++){
+                pthread_join(tid[i], NULL);
+        }
+}
         
+// IDK  ---------------------------------------------------------------------------------------------
+        // int i = 0;   
+	// for (int i = 0; i < (CustCount); i ++){
+        //         int 
+		
+	// 	threads[i].Flag = pthread_create(, NULL, Bankers, &threads[i]);
+        // pthread_t t1, t2, t3, t4, t5;
+//------------------------------------------------------------------------------------------------------
 
-
-
-
-
+        //if (bankers(thread[i] == true){
+                //let the thread in to critical section semaphore lock queue
+        //} else {
+                //make it wait until it's needs can be met
+        //}
         // -------------------- CRITICAL SECTION START----------------------
 
 
