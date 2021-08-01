@@ -1,7 +1,7 @@
 #Do not edit the contents of this file.
 CC = gcc
 CFLAGS = -Wall -g -std=gnu99
-LDFLAGS = -lrt -lpthread
+LDFLAGS = -lrt -lpthread -pthread
 TARGET = Question1  
 OBJFILES = Question1.o
 all: $(TARGET)

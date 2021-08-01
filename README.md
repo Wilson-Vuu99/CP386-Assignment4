@@ -18,7 +18,8 @@ In  this  assignment, you  will  write a  multi-threadedprogram  that  implement
 
 
 ## Contributions
- All commit has been done by Wilson, But this is due to the fact that we were using the VS code's extension LiveShare at the time Commits were made. 
+ All commits have been uploaded by Wilson, but this is due to the fact that we were using the VS code's extension LiveShare at the time Commits were made. 
+ LiveShare allows 2 or more users to edit code at the same.
 ## Commit History
 
 #### Initial Commit:
@@ -41,7 +42,7 @@ In  this  assignment, you  will  write a  multi-threadedprogram  that  implement
 1. Run is partially finished
 
 
-### Final Commit
+#### Final Commit
 1: Finished Run function
 2. Cleaned up overall code with comments
 

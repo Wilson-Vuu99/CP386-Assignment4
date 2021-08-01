@@ -5,37 +5,40 @@
 #include <pthread.h>
 #include <sys/stat.h>
 #include <time.h>
-#include <semaphore.h>
 #include <stdbool.h>
 
-
+bool sleeping;
+int sleep_num;
+int count;
+int safe[5];
 int CustCount = 5;
-int MaxR[5][4];
+int MaxR[5][4]; //MaxR[i][j], first list ([i]) represents customer number, second list ([j]) represents resource number 
 int Need[5][4];
 int Alloc[5][4];
 char FileResources[5][8];
 int AvalR[4];
 
-
-sem_t lock;
+pthread_mutex_t lock;
 
 int ReadFile(char *filename);
 int InputReader(char* command);
 void rq(char* c);
 int rl (char * c);
 void Status();
-void Run(Customer ** Customers);
+void Run();
 void* Bankers(void* t);
-Customer* Customers = NULL;
+//Customer* Customers = NULL;
 
 typedef struct customer
 {
         pthread_t Handle;
-        int CustNum;
-        int MaxR[4];
-        int Need[4];
-        int Alloc[4];
+        int CustNum; //this is the number of the customer that the thread is representing. IE = Need[i], MaxR[i]
+        int M[4];
+        int N[4];
+        int A[4];
         int returnVal;
+        bool Flag;
+        bool Complete;
         
 } Customer;
 
@@ -70,7 +73,7 @@ int ReadFile(char *filename)
                 threadCount++;
                 command = strtok(NULL, "\r\n");
         }
-
+        CustCount = threadCount;
         char *lines[threadCount];
         command = NULL;
         int i = 0;
@@ -90,7 +93,7 @@ int ReadFile(char *filename)
                 token = strtok(lines[k], ";");
                 while (token != NULL)
                 {
-                        printf("%s\n", token);
+                        //printf("%s\n", token);
 
                         strcpy(FileResources[k], token);
                         Alloc[k][j] = 0;
@@ -114,15 +117,16 @@ int ReadFile(char *filename)
                         i++;
                 }
         }
+
         return threadCount; 
 }
 
+
 int main(int argc, char *argv[]){
 
-        sem_init(&lock, 0, 1);
         // ReadFile("sample4_in.txt");
         printf("Number of Clients: 5\n");
-        printf("Currently Avaliable Resources: ");
+        printf("Currently Avaliable Resources: \n");
         //printf("");
         for (int i = 1; i < (argc ); i++)
         {
@@ -131,13 +135,24 @@ int main(int argc, char *argv[]){
                 int num = atoi(argv[i]);
                 //printf("this is num convered %d\n",num);
                 AvalR[i-1] = num;
-                //printf("num array:%d\n ",AvalR[i-1]);
+                printf("%d ",AvalR[i-1]);
 
 
         }
         printf("\n");
         printf("Maximum Resources: \n");
-        ReadFile("sample4_in.txt");
+         ReadFile("sample4_in.txt");
+
+        for (int i = 0; i < 5; i++){
+                for (int j = 0; j < 4; j++){
+                        printf("%d ",MaxR[i][j]);
+                        if(j == 3){
+                                printf("\n");
+                        }
+                }
+        }
+
+        
         
         // int finish = 0;
         // while (finish == 0){
@@ -145,17 +160,15 @@ int main(int argc, char *argv[]){
         // }
         char cmand[20];
         char command[2];
-        
-        
         bool flag;
+
         while (flag == false){
-                printf("Enter Command: ");
+                printf("Enter Command (Press 0 to Quit): ");
                 fgets(cmand, 20, stdin);
-                printf("\n");
+                //printf("\n");
                 flag = InputReader(cmand);
 
         }
-        sem_destroy(&lock);
         //cust = (Customer*) malloc(sizeof(Customer));
          
 
@@ -175,6 +188,9 @@ int InputReader(char* command){
     else if (memcmp("Run", command, 3) == 0){ 
         Run();
     }
+    else if (memcmp("0", command, 1) == 0){ 
+        exit(0);
+    }
 
     else{
         printf("Pleae enter valid command \n");
@@ -191,7 +207,7 @@ void rq(char* c){
         char * token = strtok(c, " ");
         int i = 0;
         while( token != NULL ) {
-                printf( "token: %s\n", token ); //printing each token
+                //printf( "token: %s\n", token ); //printing each token
                 strcpy(rqStr[i],token);
                 token = strtok(NULL, " ");
                 i++;
@@ -259,7 +275,7 @@ int rl(char * c){
         char * token = strtok(c, " ");
         int i = 0;
         while( token != NULL ) {
-                printf( "token: %s\n", token ); //printing each token
+                //printf( "token: %s\n", token ); //printing each token
                 strcpy(rlStr[i],token);
                 token = strtok(NULL, " ");
                 i++;
@@ -332,7 +348,7 @@ void Status (){
                 }
         }
         //Prints Maximum Resources Here <--------------------
-        printf("Maximumum Resources: \n");
+        printf("Maximum Resources: \n");
         for (int i = 0; i < 5; i++){
                 for (int j = 0; j < 4; j++){
                         printf("%d ",MaxR[i][j]);
@@ -364,18 +380,104 @@ void Status (){
 
 }
 void* Bankers(void *t){
-        printf("testing %d");
-}
 
-void Run(Customer ** Customers){
-        pthread_t tid[5];
+        while (((Customer*)t) -> Complete == false){ // while the thread has not been completed (added it's number to the safe sequence).
+
+                if (((Customer*)t) -> Flag == true){
+
+                        ((Customer*)t) -> Flag = false; //reset it's flag before it goes to sleep, so when it wakes up it doesn't get stuck in a infinite loop
+
+                        while (sleeping == true){ 
+                                sleep_num ++; //number of asleep threads goes up 1
+                                sleep(2);
+                                if (sleep_num == (CustCount - count)){ //if the number of threads asleep is equal to the all of the currently incomplete threads
+                                        sleeping = false; //wake them up!
+                                }
+                        }
+                        sleep_num = 0;
+                        //("Thread %d woke up! Will retry mutexlock.\n",((Customer*)t) -> CustNum );
+                }       
+
+                pthread_mutex_lock(&lock); //locks the mutex lock to not allow new threads access
+                
+                for (int i = 0; i < 4; i++){
+                        if (((Customer*)t) -> N[i] > AvalR[i]){ // if it passes (aka the need is less than the available resources)
+                                ((Customer*)t) -> Flag = true;
+                                sleeping = true;
+                                //printf("Thread %d was unsuccessful.\n", ((Customer*)t) -> CustNum);
+                                break;
+                        }
+                        
+                }
+
+                if (((Customer*)t) -> Flag == false){ //If the customer is solvable, then we'll solve it
+                        int cn = ((Customer*)t) -> CustNum;
+                        for (int i = 0; i < 4; i++){
+                                AvalR[i] = AvalR[i] + (((Customer*)t) -> A[i]);//add the customers alloc back to the available
+                                (((Customer*)t) -> N[i]) = 0; //set the customers needed to zero
+                                (((Customer*)t) -> A[i]) = 0;
+                                
+                        }
+
+                        safe[count] = ((Customer*)t) -> CustNum; // add the customer number to the to the safe sequence
+                        ((Customer*)t) -> Complete = true; // mark the thread as complete to avoid looping in this function again
+                        count++; // count of completed threads goes up 1
+                        sleeping = false; // no more sleeping for the threads who currently are
+                        
+
+                        //("Thread %d was successful.\n", ((Customer*)t) -> CustNum);
+                        //("Value of count = %d\n", count);
+                        
+                
+                }
+                pthread_mutex_unlock(&lock); //unlocks the mutex lock to not allow new threads access
+        }
+}       
+
+void Run(){
+        
+        Customer Thread[5];
+        int AvalR_Clone[4];
+        for (int i = 0; i < 4; i++){
+                AvalR_Clone[i] = AvalR[i];
+        }
+
         for (int i = 0; i < 5; i++){
-                pthread_create(&(tid[i]), NULL, Bankers, NULL)
+
+                Thread[i].CustNum = i;
+                Thread[i].Flag = false;
+
+                for (int j = 0; j < 4; j ++){
+                        Thread[i].M[j] = MaxR[i][j];
+                        Thread[i].N[j] = Need[i][j];
+                        Thread[i].A[j] = Alloc[i][j];
+                }
+                Thread[i].returnVal = pthread_create(&(Thread[i].Handle), NULL, Bankers, &Thread[i]);
         }
-        for (int i=0; i<5; i++){
-                pthread_join(tid[i], NULL);
+        for (int i = 0; i < 5; i++){ 
+                pthread_join(Thread[i].Handle, NULL);
+
         }
-}
+        printf("Safe Sequence is: %d, %d, %d, %d, %d\n", safe[0], safe[1], safe[2], safe[3], safe[4]);
+        for (int i = 0; i < 5; i++){
+                int cn = safe[i];
+                printf("--> Customer/Thread %d\n", cn);
+                printf("    Allocated resources: %d %d %d %d\n",Alloc[cn][0], Alloc[cn][1], Alloc[cn][2], Alloc[cn][3]);
+                printf("    Needed: %d %d %d %d\n", Need[cn][0], Need[cn][1], Need[cn][2], Need[cn][3]);
+                printf("    Available: %d %d %d %d\n", AvalR_Clone[0], AvalR_Clone[1], AvalR_Clone[2], AvalR_Clone[3]);
+                printf("    Thread has started\n");
+                printf("    Thread has finished\n");
+                printf("    Thread is releasing resources\n");
+                AvalR_Clone[0] = AvalR_Clone[0] + Alloc[cn][0];
+                AvalR_Clone[1] = AvalR_Clone[1] + Alloc[cn][1];
+                AvalR_Clone[2] = AvalR_Clone[2] + Alloc[cn][2];
+                AvalR_Clone[3] = AvalR_Clone[3] + Alloc[cn][3];
+        
+                printf("    New Available: %d %d %d %d\n", AvalR_Clone[0], AvalR_Clone[1], AvalR_Clone[2], AvalR_Clone[3]);
+                Need[cn][i] = 0;
+                Alloc[cn][i] = 0;
+        }
+}       
         
 // IDK  ---------------------------------------------------------------------------------------------
         // int i = 0;   
@@ -439,4 +541,3 @@ void Run(Customer ** Customers){
         // printf(" P%d", ans[n - 1]);
         
         // return (0);
-}
